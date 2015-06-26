@@ -1,4 +1,4 @@
-.TH sreport "1" "Slurm Commands" "April 2015" "Slurm Commands"
+.TH sreport "1" "Slurm Commands" "June 2015" "Slurm Commands"
 
 .SH "NAME"
 sreport \- Generate reports from the slurm accounting data.
@@ -37,6 +37,10 @@ Specify the output time format. Time format options are case
 insensitive and may be abbreviated. The default format is Minutes.
 Supported time format options are listed in the \fBtime\fP command
 section below.
+.TP
+\fB\-T,  \-\-tres <tres_names>\fR
+Trackable resource (TRES) to report values for.
+By default no trackable resources are reported
 .TP
 \fB\-v\fR, \fB\-\-verbose\fR
 Print detailed event logging.
@@ -408,7 +412,10 @@ All commands and options are case-insensitive.
 Some \fBsreport\fR options may be set via environment variables. These
 environment variables, along with their corresponding options, are listed below.
 (Note: commandline options will always override these settings)
-.TP 20
+.TP 14
+\fBSREPORT_TRES\fR
+Same as \fB\-t, \-\-tres\fR
+.TP
 \fBSLURM_CONF\fR
 The location of the Slurm configuration file.
 
@@ -439,7 +446,7 @@ Report top usage in percent of the lc account during the specified week
 Copyright (C) 2009\-2010 Lawrence Livermore National Security.
 Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
 .br
-Copyright (C) 2010\-2013 SchedMD LLC.
+Copyright (C) 2010\-2015 SchedMD LLC.
 .LP
 This file is part of Slurm, a resource management program.
 For details, see <http://slurm.schedmd.com/>.

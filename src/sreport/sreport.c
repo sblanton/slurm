@@ -1,6 +1,7 @@
 /*****************************************************************************\
  *  sreport.c - report generating tool for slurm accounting.
  *****************************************************************************
+ *  Copyright (C) 2010-2015 SchedMD LLC.
  *  Copyright (C) 2008 Lawrence Livermore National Security.
  *  Copyright (C) 2002-2007 The Regents of the University of California.
  *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
@@ -54,6 +55,7 @@ int exit_code;		/* sreport's exit code, =1 on any error at any time */
 int exit_flag;		/* program to terminate if =1 */
 int input_words;	/* number of words of input permitted */
 int quiet_flag;		/* quiet=1, verbose=-1, normal=0 */
+char *tres_str = NULL;	/* --tres= value */
 int all_clusters_flag = 0;
 slurmdb_report_time_format_t time_format = SLURMDB_REPORT_TIME_MINS;
 char *time_format_string = "Minutes";
@@ -90,6 +92,7 @@ main (int argc, char *argv[])
 		{"parsable2",0, 0, 'P'},
 		{"quiet",    0, 0, 'Q'},
 		{"sort",     0, 0, 's'},
+		{"tres",     1, 0, 'T'},
 		{"usage",    0, 0, 'h'},
 		{"verbose",  0, 0, 'v'},
 		{"version",  0, 0, 'V'},
@@ -118,7 +121,11 @@ main (int argc, char *argv[])
 	}
 	xfree(temp);
 
-	while((opt_char = getopt_long(argc, argv, "ahnpPQs:t:vV",
+	temp = getenv("SREPORT_TRES");
+	if (temp)
+		tres_str = xstrdup(temp);
+
+	while ((opt_char = getopt_long(argc, argv, "ahnpPQs:t:T:vV",
 			long_options, &option_index)) != -1) {
 		switch (opt_char) {
 		case (int)'?':
@@ -138,11 +145,11 @@ main (int argc, char *argv[])
 			break;
 		case (int)'p':
 			print_fields_parsable_print =
-			PRINT_FIELDS_PARSABLE_ENDING;
+				PRINT_FIELDS_PARSABLE_ENDING;
 			break;
 		case (int)'P':
 			print_fields_parsable_print =
-			PRINT_FIELDS_PARSABLE_NO_ENDING;
+				PRINT_FIELDS_PARSABLE_NO_ENDING;
 			break;
 		case (int)'Q':
 			quiet_flag = 1;
@@ -152,6 +159,10 @@ main (int argc, char *argv[])
 			break;
 		case (int)'t':
 			_set_time_format(optarg);
+			break;
+		case (int)'T':
+			xfree(tres_str);
+			tres_str = xstrdup(optarg);
 			break;
 		case (int)'v':
 			quiet_flag = -1;
