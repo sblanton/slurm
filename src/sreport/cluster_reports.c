@@ -2,6 +2,7 @@
  *  cluster_reports.c - functions for generating cluster reports
  *                       from accounting infrastructure.
  *****************************************************************************
+ *  Copyright (C) 2010-2015 SchedMD LLC.
  *  Copyright (C) 2008 Lawrence Livermore National Security.
  *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
  *  Written by Danny Auble <da@llnl.gov>
@@ -579,16 +580,14 @@ static List _get_cluster_list(int argc, char *argv[], uint32_t *total_time,
 				    end_char, sizeof(end_char));
 		printf("----------------------------------------"
 		       "----------------------------------------\n");
-		printf("%s %s - %s (%d*CPU secs)\n",
-		       report_name, start_char, end_char,
-		       (int)(cluster_cond->usage_end
-			     - cluster_cond->usage_start));
+		printf("%s %s - %s\n",
+		       report_name, start_char, end_char);
 		switch(time_format) {
 		case SLURMDB_REPORT_TIME_PERCENT:
 			printf("Time reported in %s\n", time_format_string);
 			break;
 		default:
-			printf("Time reported in CPU %s\n", time_format_string);
+			printf("Time reported in TRES %s\n", time_format_string);
 			break;
 		}
 		printf("----------------------------------------"
