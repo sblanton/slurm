@@ -57,6 +57,7 @@ enum {
 	PRINT_CLUSTER_AMOUNT_USED,
 	PRINT_CLUSTER_WCKEY,
 	PRINT_CLUSTER_ENERGY,
+	PRINT_CLUSTER_TRES,
 };
 
 typedef enum {
@@ -491,6 +492,12 @@ static int _setup_print_fields_list(List format_list)
 			else
 				field->len = 9;
 			field->print_routine = slurmdb_report_print_time;
+		} else if (!strncasecmp("tres", object,
+				       MAX(command_len, 2))) {
+			field->type = PRINT_CLUSTER_TRES;
+			field->name = xstrdup("TRES");
+			field->len = 14;
+			field->print_routine = print_fields_str;
 		} else if (!strncasecmp("Used", object, MAX(command_len, 1))) {
 			field->type = PRINT_CLUSTER_AMOUNT_USED;
 			field->name = xstrdup("Used");
@@ -553,7 +560,7 @@ static List _get_cluster_list(int argc, char *argv[], uint32_t *total_time,
 
 	cluster_list = slurmdb_clusters_get(db_conn, cluster_cond);
 	if (!cluster_list) {
-		exit_code=1;
+		exit_code = 1;
 		fprintf(stderr, " Problem with cluster query.\n");
 		return NULL;
 	}
@@ -570,7 +577,7 @@ static List _get_cluster_list(int argc, char *argv[], uint32_t *total_time,
 				    end_char, sizeof(end_char));
 		printf("----------------------------------------"
 		       "----------------------------------------\n");
-		printf("%s %s - %s (%d*cpus secs)\n",
+		printf("%s %s - %s (%d*CPU secs)\n",
 		       report_name, start_char, end_char,
 		       (int)(cluster_cond->usage_end
 			     - cluster_cond->usage_start));
@@ -1184,7 +1191,6 @@ extern int cluster_user_by_wckey(int argc, char *argv[])
                                                 cluster_energy_alloc_secs,
                                                 (curr_inx == field_count));
                                         break;
-
 				default:
 					field->print_routine(
 						field, NULL,
@@ -1215,6 +1221,104 @@ end_it:
 	return rc;
 }
 
+static void _cluster_tres_report(slurmdb_tres_rec_t *tres, print_field_t *field,
+				 int field_count,
+				 slurmdb_cluster_rec_t *cluster,
+				 uint32_t total_time, List total_tres_acct,
+				 uint64_t energy_cnt)
+{
+	slurmdb_cluster_accounting_rec_t *total_acct;
+	uint64_t total_reported = 0;
+	uint64_t local_total_time = 0;
+	int curr_inx = 1;
+	ListIterator iter;
+	char *tres_tmp = NULL;
+
+	if (!(total_acct = list_find_first(total_tres_acct,
+				slurmdb_find_cluster_accting_tres_in_list,
+				&tres->id))) {
+		info("error, no %s(%d) TRES!", tres->type, tres->id);
+		return;
+	}
+
+	local_total_time = (uint64_t)total_time *
+			   (uint64_t)total_acct->tres_rec.count;
+	total_reported = total_acct->alloc_secs + total_acct->down_secs
+			 + total_acct->pdown_secs + total_acct->idle_secs
+			 + total_acct->resv_secs;
+
+	iter = list_iterator_create(print_fields_list);
+	while ((field = list_next(iter))) {
+		switch (field->type) {
+		case PRINT_CLUSTER_NAME:
+			field->print_routine(field, cluster->name,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_CPUS:
+			field->print_routine(field,
+					     total_acct->tres_rec.count,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_ACPU:
+			field->print_routine(field, total_acct->alloc_secs,
+					     total_reported,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_DCPU:
+			field->print_routine(field, total_acct->down_secs,
+					     total_reported,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_ICPU:
+			field->print_routine(field, total_acct->idle_secs,
+					     total_reported,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_RCPU:
+			field->print_routine(field, total_acct->resv_secs,
+					     total_reported,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_OCPU:
+			field->print_routine(field, total_acct->over_secs,
+					     total_reported,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_PDCPU:
+			field->print_routine(field, total_acct->pdown_secs,
+					     total_reported,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_TOTAL:
+			field->print_routine(field, total_reported,
+					     local_total_time,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_ENERGY:
+			field->print_routine(field, energy_cnt, energy_cnt,
+			                     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_TRES:
+			xstrfmtcat(tres_tmp, "%s%s%s",
+				   tres->type,
+				   tres->name ? "/" : "",
+				   tres->name ? tres->name : "");
+
+			field->print_routine(field, tres_tmp,
+					     (curr_inx == field_count));
+			xfree(tres_tmp);
+			break;
+		default:
+			field->print_routine(field, NULL,
+					     (curr_inx == field_count));
+			break;
+		}
+		curr_inx++;
+	}
+	list_iterator_destroy(iter);
+	printf("\n");
+}
+
 extern int cluster_utilization(int argc, char *argv[])
 {
 	int rc = SLURM_SUCCESS;
@@ -1222,182 +1326,86 @@ extern int cluster_utilization(int argc, char *argv[])
 	ListIterator itr2 = NULL;
 	ListIterator itr3 = NULL;
 	slurmdb_cluster_rec_t *cluster = NULL;
-
 	print_field_t *field = NULL;
-	uint32_t total_time = 0;
-
+	uint32_t total_time = 0, tres_id;
+	uint64_t energy_cnt = 0;
 	List cluster_list = NULL;
-
-	List format_list = list_create(slurm_destroy_char);
 	int field_count = 0;
+	List format_list = list_create(slurm_destroy_char);
 
 	print_fields_list = list_create(destroy_print_field);
 
 
 	if (!(cluster_list = _get_cluster_list(argc, argv, &total_time,
-					      "Cluster Utilization",
-					      format_list)))
+					       "Cluster Utilization",
+					       format_list)))
 		goto end_it;
 
-	if (!list_count(format_list))
-		slurm_addto_char_list(format_list, "Cl,al,d,planned,i,res,rep");
+	if (!list_count(format_list)) {
+		if (tres_str) {
+			slurm_addto_char_list(format_list,
+					      "Cl,tres,al,d,planned,i,res,rep");
+		} else {
+			slurm_addto_char_list(format_list,
+					      "Cl,al,d,planned,i,res,rep");
+		}
+	}
 
 	_setup_print_fields_list(format_list);
 	list_destroy(format_list);
-
-	itr = list_iterator_create(cluster_list);
-	itr2 = list_iterator_create(print_fields_list);
 
 	print_fields_header(print_fields_list);
 
 	field_count = list_count(print_fields_list);
 
+	itr = list_iterator_create(cluster_list);
 	while ((cluster = list_next(itr))) {
 		slurmdb_cluster_accounting_rec_t *accting = NULL;
 		slurmdb_cluster_accounting_rec_t *total_acct;
+		slurmdb_tres_rec_t *tres;
 		List total_tres_acct = NULL;
-		uint64_t total_reported = 0;
-		uint64_t local_total_time = 0;
-		int curr_inx = 1;
-		uint32_t tres_id;
-		uint64_t energy_cnt = 0;
 
 		if (!cluster->accounting_list
 		   || !list_count(cluster->accounting_list))
 			continue;
 
 		itr3 = list_iterator_create(cluster->accounting_list);
-		while ((accting = list_next(itr3)))
+		while ((accting = list_next(itr3))) {
 			slurmdb_sum_accounting_list(
 				accting, &total_tres_acct);
+		}
 		list_iterator_destroy(itr3);
+
+		/* For backward compatibility with pre-TRES logic,
+		 * get energy_cnt here */
+		tres_id = TRES_ENERGY;
+		if ((total_acct = list_find_first(total_tres_acct,
+				slurmdb_find_cluster_accting_tres_in_list,
+				&tres_id)))
+		energy_cnt = total_acct->tres_rec.count;
 
 		itr3 = list_iterator_create(total_tres_acct);
-		while ((accting = list_next(itr3)))
+		while ((accting = list_next(itr3))) {
 			accting->tres_rec.count /=
 				accting->tres_rec.rec_count;
+		}
 		list_iterator_destroy(itr3);
 
-		/* FIXME: Right now this only reports CPU tres */
-		tres_id = TRES_ENERGY;
-		if ((total_acct = list_find_first(
-			     total_tres_acct,
-			     slurmdb_find_cluster_accting_tres_in_list,
-			     &tres_id)))
-			energy_cnt = total_acct->tres_rec.count;
-
-
-		tres_id = TRES_CPU;
-		if (!(total_acct = list_find_first(
-			      total_tres_acct,
-			      slurmdb_find_cluster_accting_tres_in_list,
-			      &tres_id))) {
-			info("error, no cpu(%d) tres!", tres_id);
-			continue;
+		itr2 = list_iterator_create(tres_list);
+		while ((tres = list_next(itr2))) {
+			if (tres->id == NO_VAL)
+				continue;
+			_cluster_tres_report(tres, field, field_count,
+					     cluster, total_time,
+					     total_tres_acct, energy_cnt);
 		}
-
-		local_total_time = (uint64_t)total_time *
-			(uint64_t)total_acct->tres_rec.count;
-		total_reported = total_acct->alloc_secs + total_acct->down_secs
-			+ total_acct->pdown_secs + total_acct->idle_secs
-			+ total_acct->resv_secs;
-
-		while ((field = list_next(itr2))) {
-			switch(field->type) {
-			case PRINT_CLUSTER_NAME:
-				field->print_routine(field,
-						     cluster->name,
-						     (curr_inx ==
-						      field_count));
-				break;
-			case PRINT_CLUSTER_CPUS:
-				field->print_routine(field,
-						     total_acct->
-						     tres_rec.count,
-						     (curr_inx ==
-						      field_count));
-				break;
-			case PRINT_CLUSTER_ACPU:
-				field->print_routine(field,
-						     total_acct->alloc_secs,
-						     total_reported,
-						     (curr_inx ==
-						      field_count));
-				break;
-			case PRINT_CLUSTER_DCPU:
-				field->print_routine(field,
-						     total_acct->down_secs,
-						     total_reported,
-						     (curr_inx ==
-						      field_count));
-				break;
-			case PRINT_CLUSTER_ICPU:
-				field->print_routine(field,
-						     total_acct->idle_secs,
-						     total_reported,
-						     (curr_inx ==
-						      field_count));
-				break;
-			case PRINT_CLUSTER_RCPU:
-				field->print_routine(field,
-						     total_acct->resv_secs,
-						     total_reported,
-						     (curr_inx ==
-						      field_count));
-				break;
-			case PRINT_CLUSTER_OCPU:
-					field->print_routine(field,
-						     total_acct->over_secs,
-						     total_reported,
-						     (curr_inx ==
-						      field_count));
-				break;
-			case PRINT_CLUSTER_PDCPU:
-					field->print_routine(field,
-						     total_acct->pdown_secs,
-						     total_reported,
-						     (curr_inx ==
-						      field_count));
-				break;
-			case PRINT_CLUSTER_ENERGY:
-				field->print_routine(field,
-				                     energy_cnt,
-						     energy_cnt,
-				                     (curr_inx ==
-				                      field_count));
-				break;
-			case PRINT_CLUSTER_TOTAL:
-				field->print_routine(field,
-						     total_reported,
-						     local_total_time,
-						     (curr_inx ==
-						      field_count));
-				break;
-			default:
-				field->print_routine(
-					field, NULL,
-					(curr_inx == field_count));
-				break;
-			}
-			curr_inx++;
-		}
-		list_iterator_reset(itr2);
-		printf("\n");
+		list_iterator_destroy(itr2);
 	}
-
-	list_iterator_destroy(itr2);
 	list_iterator_destroy(itr);
 
 end_it:
-	if (cluster_list) {
-		list_destroy(cluster_list);
-		cluster_list = NULL;
-	}
-
-	if (print_fields_list) {
-		list_destroy(print_fields_list);
-		print_fields_list = NULL;
-	}
+	FREE_NULL_LIST(cluster_list);
+	FREE_NULL_LIST(print_fields_list);
 
 	return rc;
 }

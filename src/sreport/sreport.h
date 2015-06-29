@@ -98,6 +98,7 @@ extern int exit_flag;	/* program to terminate if =1 */
 extern int input_words;	/* number of words of input permitted */
 extern int quiet_flag;	/* quiet=1, verbose=-1, normal=0 */
 extern char *tres_str;	/* --tres= value */
+List tres_list;		/* TRES to report, built from --tres= value */
 extern void *db_conn;
 extern uint32_t my_uid;
 extern int all_clusters_flag;
