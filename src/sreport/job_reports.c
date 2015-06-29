@@ -459,11 +459,14 @@ static int _setup_print_fields_list(List format_list)
 			field->name = xstrdup("Cluster");
 			field->len = 9;
 			field->print_routine = print_fields_str;
-		} else if (!strncasecmp("CpuCount", object,
-				       MAX(command_len, 2))) {
+		} else if (!strncasecmp("cpucount", object,
+					MAX(command_len, 2)) ||
+			   !strncasecmp("TresCount", object,
+					MAX(command_len, 5)) ||
+			   !strncasecmp("count", object, MAX(command_len, 2))) {
 			field->type = PRINT_JOB_CPUS;
-			field->name = xstrdup("CPU Count");
-			field->len = 9;
+			field->name = xstrdup("TRES Count");
+			field->len = 10;
 			field->print_routine = print_fields_uint;
 		} else if (!strncasecmp("Duration", object,
 				       MAX(command_len, 1))) {

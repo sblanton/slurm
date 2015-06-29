@@ -364,19 +364,19 @@ AccountUtilizationByUser:
 .br
 UserUtilizationByAccount:
 .in 14
-Accounts, Cluster, CPUCount, Login, Proper, Used
+Accounts, Cluster, Login, Proper, TresCount, Used
 
 .in 10
 UserUtilizationByWckey:
 .br
 WCKeyUtilizationByUser:
 .in 14
-Cluster, CPUCount, Login, Proper, Used, Wckey
+Cluster, Login, Proper, TresCount, Used, Wckey
 
 .in 10
 Utilization:
 .in 14
-Allocated, Cluster, CPUCount, Down, Idle, Overcommited, PlannedDown, Reported, Reserved
+Allocated, Cluster, Down, Idle, Overcommited, PlannedDown, Reported, Reserved, TresCount
 
 .TP
 \fBFORMAT OPTIONS FOR JOB REPORTS\fP
@@ -395,7 +395,7 @@ Wckey, Cluster
 .in 10
 Utilization:
 .in 14
-Allocated, Associations, Cluster, CPUCount, CPUTime, End, Flags, Idle, Name, Nodes, ReservationId, Start, TotalTime
+Allocated, Associations, Cluster, CPUTime, End, Flags, Idle, Name, Nodes, ReservationId, Start, TotalTime, TresCount
 
 .TP
 \fBFORMAT OPTIONS FOR USER REPORTS\fP
@@ -431,7 +431,7 @@ The location of the Slurm configuration file.
 \fBsreport job sizesbyaccount All_Clusters users=gore1 account=environ PrintJobCount\fP
 Report number of jobs by user gore1 within the environ account
 .TP
-\fBsreport cluster AccountUtilizationByUser cluster=zeus user=gore1 start=2/23/08 end=2/24/09 format=Accounts,Cluster,CPUCount,Login,Proper,Used\fP
+\fBsreport cluster AccountUtilizationByUser cluster=zeus user=gore1 start=2/23/08 end=2/24/09 format=Accounts,Cluster,TresCount,Login,Proper,Used\fP
 Report cluster account utilization with the specified fields during
 the specified 24 hour day of February 23, 2009, by user gore1
 .TP

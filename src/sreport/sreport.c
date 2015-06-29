@@ -857,12 +857,12 @@ sreport [<OPTION>] [<COMMAND>]                                             \n\
        Cluster                                                             \n\
        - AccountUtilizationByUser                                          \n\
        - UserUtilizationByAccount                                          \n\
-             - Accounts, Cluster, CPUCount, Login, Proper, Used            \n\
+             - Accounts, Cluster, Count, Login, Proper, Used               \n\
        - UserUtilizationByWckey                                            \n\
        - WCKeyUtilizationByUser                                            \n\
-             - Cluster, CPUCount, Login, Proper, Used, Wckey               \n\
+             - Cluster, Count, Login, Proper, Used, Wckey                  \n\
        - Utilization                                                       \n\
-             - Allocated, Cluster, CPUCount, Down, Idle, Overcommited,     \n\
+             - Allocated, Cluster, Count, Down, Idle, Overcommited,        \n\
                PlannedDown, Reported, Reserved                             \n\
                                                                            \n\
        Job                                                                 \n\
@@ -871,7 +871,7 @@ sreport [<OPTION>] [<COMMAND>]                                             \n\
                                                                            \n\
        Reservation                                                         \n\
        - Utilization                                                       \n\
-             - Allocated, Associations, Cluster, CPUCount, CPUTime,        \n\
+             - Allocated, Associations, Cluster, Count, CPUTime,           \n\
                End, Flags, Idle, Name, Nodes, ReservationId, Start, TotalTime \n\
                                                                            \n\
        User                                                                \n\

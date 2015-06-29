@@ -243,9 +243,12 @@ static int _setup_print_fields_list(List format_list)
 			field->len = 9;
 			field->print_routine = print_fields_str;
 		} else if (!strncasecmp("cpucount", object,
-				       MAX(command_len, 2))) {
+					MAX(command_len, 2)) ||
+			   !strncasecmp("TresCount", object,
+					MAX(command_len, 5)) ||
+			   !strncasecmp("count", object, MAX(command_len, 2))) {
 			field->type = PRINT_RESV_CPUS;
-			field->name = xstrdup("CPU count");
+			field->name = xstrdup("TRES count");
 			field->len = 9;
 			field->print_routine = print_fields_uint;
 		} else if (!strncasecmp("ReservationId", object,

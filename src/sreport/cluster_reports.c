@@ -2,7 +2,6 @@
  *  cluster_reports.c - functions for generating cluster reports
  *                       from accounting infrastructure.
  *****************************************************************************
- *
  *  Copyright (C) 2008 Lawrence Livermore National Security.
  *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
  *  Written by Danny Auble <da@llnl.gov>
@@ -43,21 +42,21 @@ bool tree_display = 0;
 
 enum {
 	PRINT_CLUSTER_NAME,
-	PRINT_CLUSTER_CPUS,
-	PRINT_CLUSTER_ACPU,
-	PRINT_CLUSTER_DCPU,
-	PRINT_CLUSTER_ICPU,
-	PRINT_CLUSTER_PDCPU,
-	PRINT_CLUSTER_OCPU,
-	PRINT_CLUSTER_RCPU,
-	PRINT_CLUSTER_TOTAL,
+	PRINT_CLUSTER_TRES_CNT,
+	PRINT_CLUSTER_TRES_ALLOC,
+	PRINT_CLUSTER_TRES_DOWN,
+	PRINT_CLUSTER_TRES_IDLE,
+	PRINT_CLUSTER_TRES_PLAN_DOWN,
+	PRINT_CLUSTER_TRES_OVER,
+	PRINT_CLUSTER_TRES_RESV,
+	PRINT_CLUSTER_TRES_REPORTED,
 	PRINT_CLUSTER_ACCT,
 	PRINT_CLUSTER_USER_LOGIN,
 	PRINT_CLUSTER_USER_PROPER,
 	PRINT_CLUSTER_AMOUNT_USED,
 	PRINT_CLUSTER_WCKEY,
 	PRINT_CLUSTER_ENERGY,
-	PRINT_CLUSTER_TRES,
+	PRINT_CLUSTER_TRES_NAME,
 };
 
 typedef enum {
@@ -94,12 +93,12 @@ static int _set_wckey_cond(int *start, int argc, char *argv[],
 	if (!wckey_cond->cluster_list)
 		wckey_cond->cluster_list = list_create(slurm_destroy_char);
 
-	for (i=(*start); i<argc; i++) {
+	for (i = (*start); i < argc; i++) {
 		end = parse_option_end(argv[i]);
 		if (!end)
 			command_len=strlen(argv[i]);
 		else {
-			command_len=end-1;
+			command_len = end-1;
 			if (argv[i][end] == '=') {
 				end++;
 			}
@@ -196,7 +195,7 @@ static int _set_assoc_cond(int *start, int argc, char *argv[],
 
 	if (!assoc_cond->cluster_list)
 		assoc_cond->cluster_list = list_create(slurm_destroy_char);
-	for (i=(*start); i<argc; i++) {
+	for (i = (*start); i < argc; i++) {
 		end = parse_option_end(argv[i]);
 		if (!end)
 			command_len=strlen(argv[i]);
@@ -250,7 +249,7 @@ static int _set_assoc_cond(int *start, int argc, char *argv[],
 			assoc_cond->usage_start = parse_time(argv[i]+end, 1);
 			set = 1;
 		} else {
-			exit_code=1;
+			exit_code = 1;
 			fprintf(stderr, " Unknown condition: %s\n"
 			       "Use keyword set to modify value\n", argv[i]);
 		}
@@ -302,7 +301,7 @@ static int _set_cluster_cond(int *start, int argc, char *argv[],
 		if (!end)
 			command_len=strlen(argv[i]);
 		else {
-			command_len=end-1;
+			command_len = end - 1;
 			if (argv[i][end] == '=') {
 				end++;
 			}
@@ -330,7 +329,7 @@ static int _set_cluster_cond(int *start, int argc, char *argv[],
 			cluster_cond->usage_start = parse_time(argv[i]+end, 1);
 			set = 1;
 		} else {
-			exit_code=1;
+			exit_code = 1;
 			fprintf(stderr," Unknown condition: %s\n"
 			       "Use keyword set to modify value\n", argv[i]);
 		}
@@ -363,7 +362,7 @@ static int _setup_print_fields_list(List format_list)
 	char *object = NULL;
 
 	if (!format_list || !list_count(format_list)) {
-		exit_code=1;
+		exit_code = 1;
 			fprintf(stderr, " we need a format list "
 				"to set up the print.\n");
 		return SLURM_ERROR;
@@ -396,7 +395,7 @@ static int _setup_print_fields_list(List format_list)
 			field->print_routine = print_fields_str;
 		} else if (!strncasecmp("allocated", object,
 				       MAX(command_len, 2))) {
-			field->type = PRINT_CLUSTER_ACPU;
+			field->type = PRINT_CLUSTER_TRES_ALLOC;
 			field->name = xstrdup("Allocated");
 			if (time_format == SLURMDB_REPORT_TIME_SECS_PER
 			   || time_format == SLURMDB_REPORT_TIME_MINS_PER
@@ -412,13 +411,16 @@ static int _setup_print_fields_list(List format_list)
 			field->len = 9;
 			field->print_routine = print_fields_str;
 		} else if (!strncasecmp("cpucount", object,
-				       MAX(command_len, 2))) {
-			field->type = PRINT_CLUSTER_CPUS;
-			field->name = xstrdup("CPU count");
-			field->len = 9;
+					MAX(command_len, 2)) ||
+			   !strncasecmp("TresCount", object,
+					MAX(command_len, 5)) ||
+			   !strncasecmp("count", object, MAX(command_len, 2))) {
+			field->type = PRINT_CLUSTER_TRES_CNT;
+			field->name = xstrdup("TRES Count");
+			field->len = 10;
 			field->print_routine = print_fields_uint;
 		} else if (!strncasecmp("down", object, MAX(command_len, 1))) {
-			field->type = PRINT_CLUSTER_DCPU;
+			field->type = PRINT_CLUSTER_TRES_DOWN;
 			field->name = xstrdup("Down");
 			if (time_format == SLURMDB_REPORT_TIME_SECS_PER
 			   || time_format == SLURMDB_REPORT_TIME_MINS_PER
@@ -428,7 +430,7 @@ static int _setup_print_fields_list(List format_list)
 				field->len = 10;
 			field->print_routine = slurmdb_report_print_time;
 		} else if (!strncasecmp("idle", object, MAX(command_len, 1))) {
-			field->type = PRINT_CLUSTER_ICPU;
+			field->type = PRINT_CLUSTER_TRES_IDLE;
 			field->name = xstrdup("Idle");
 			if (time_format == SLURMDB_REPORT_TIME_SECS_PER
 			   || time_format == SLURMDB_REPORT_TIME_MINS_PER
@@ -444,7 +446,7 @@ static int _setup_print_fields_list(List format_list)
 			field->print_routine = print_fields_str;
 		} else if (!strncasecmp("overcommited", object,
 				       MAX(command_len, 1))) {
-			field->type = PRINT_CLUSTER_OCPU;
+			field->type = PRINT_CLUSTER_TRES_OVER;
 			field->name = xstrdup("Over Comm");
 			if (time_format == SLURMDB_REPORT_TIME_SECS_PER
 			   || time_format == SLURMDB_REPORT_TIME_MINS_PER
@@ -455,7 +457,7 @@ static int _setup_print_fields_list(List format_list)
 			field->print_routine = slurmdb_report_print_time;
 		} else if (!strncasecmp("PlannedDown", object,
 				       MAX(command_len, 2))) {
-			field->type = PRINT_CLUSTER_PDCPU;
+			field->type = PRINT_CLUSTER_TRES_PLAN_DOWN;
 			field->name = xstrdup("PLND Down");
 			if (time_format == SLURMDB_REPORT_TIME_SECS_PER
 			   || time_format == SLURMDB_REPORT_TIME_MINS_PER
@@ -472,7 +474,7 @@ static int _setup_print_fields_list(List format_list)
 			field->print_routine = print_fields_str;
 		} else if (!strncasecmp("reported", object,
 				       MAX(command_len, 3))) {
-			field->type = PRINT_CLUSTER_TOTAL;
+			field->type = PRINT_CLUSTER_TRES_REPORTED;
 			field->name = xstrdup("Reported");
 			if (time_format == SLURMDB_REPORT_TIME_SECS_PER
 			   || time_format == SLURMDB_REPORT_TIME_MINS_PER
@@ -483,7 +485,7 @@ static int _setup_print_fields_list(List format_list)
 			field->print_routine = slurmdb_report_print_time;
 		} else if (!strncasecmp("reserved", object,
 				       MAX(command_len, 3))) {
-			field->type = PRINT_CLUSTER_RCPU;
+			field->type = PRINT_CLUSTER_TRES_RESV;
 			field->name = xstrdup("Reserved");
 			if (time_format == SLURMDB_REPORT_TIME_SECS_PER
 			   || time_format == SLURMDB_REPORT_TIME_MINS_PER
@@ -492,10 +494,10 @@ static int _setup_print_fields_list(List format_list)
 			else
 				field->len = 9;
 			field->print_routine = slurmdb_report_print_time;
-		} else if (!strncasecmp("tres", object,
-				       MAX(command_len, 2))) {
-			field->type = PRINT_CLUSTER_TRES;
-			field->name = xstrdup("TRES");
+		} else if (!strncasecmp("TresName", object,
+				       MAX(command_len, 5))) {
+			field->type = PRINT_CLUSTER_TRES_NAME;
+			field->name = xstrdup("TRES Name");
 			field->len = 14;
 			field->print_routine = print_fields_str;
 		} else if (!strncasecmp("Used", object, MAX(command_len, 1))) {
@@ -1254,42 +1256,42 @@ static void _cluster_tres_report(slurmdb_tres_rec_t *tres, print_field_t *field,
 			field->print_routine(field, cluster->name,
 					     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_CPUS:
+		case PRINT_CLUSTER_TRES_CNT:
 			field->print_routine(field,
 					     total_acct->tres_rec.count,
 					     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_ACPU:
+		case PRINT_CLUSTER_TRES_ALLOC:
 			field->print_routine(field, total_acct->alloc_secs,
 					     total_reported,
 					     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_DCPU:
+		case PRINT_CLUSTER_TRES_DOWN:
 			field->print_routine(field, total_acct->down_secs,
 					     total_reported,
 					     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_ICPU:
+		case PRINT_CLUSTER_TRES_IDLE:
 			field->print_routine(field, total_acct->idle_secs,
 					     total_reported,
 					     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_RCPU:
+		case PRINT_CLUSTER_TRES_RESV:
 			field->print_routine(field, total_acct->resv_secs,
 					     total_reported,
 					     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_OCPU:
+		case PRINT_CLUSTER_TRES_OVER:
 			field->print_routine(field, total_acct->over_secs,
 					     total_reported,
 					     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_PDCPU:
+		case PRINT_CLUSTER_TRES_PLAN_DOWN:
 			field->print_routine(field, total_acct->pdown_secs,
 					     total_reported,
 					     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_TOTAL:
+		case PRINT_CLUSTER_TRES_REPORTED:
 			field->print_routine(field, total_reported,
 					     local_total_time,
 					     (curr_inx == field_count));
@@ -1298,7 +1300,7 @@ static void _cluster_tres_report(slurmdb_tres_rec_t *tres, print_field_t *field,
 			field->print_routine(field, energy_cnt, energy_cnt,
 			                     (curr_inx == field_count));
 			break;
-		case PRINT_CLUSTER_TRES:
+		case PRINT_CLUSTER_TRES_NAME:
 			xstrfmtcat(tres_tmp, "%s%s%s",
 				   tres->type,
 				   tres->name ? "/" : "",
@@ -1344,7 +1346,7 @@ extern int cluster_utilization(int argc, char *argv[])
 	if (!list_count(format_list)) {
 		if (tres_str) {
 			slurm_addto_char_list(format_list,
-					      "Cl,tres,al,d,planned,i,res,rep");
+					      "Cl,TresName,al,d,planned,i,res,rep");
 		} else {
 			slurm_addto_char_list(format_list,
 					      "Cl,al,d,planned,i,res,rep");
