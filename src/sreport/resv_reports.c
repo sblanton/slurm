@@ -294,9 +294,9 @@ static int _setup_print_fields_list(List format_list)
 			field->len = 9;
 			field->print_routine = print_fields_time_from_secs;
 		} else if (!strncasecmp("TresCount", object,
-					MAX(command_len, 2)) ||
-			   !strncasecmp("CpuCount", object,
 					MAX(command_len, 5)) ||
+			   !strncasecmp("CpuCount", object,
+					MAX(command_len, 2)) ||
 			   !strncasecmp("count", object, MAX(command_len, 2))) {
 			field->type = PRINT_RESV_TRES_CNT;
 			field->name = xstrdup("TRES count");

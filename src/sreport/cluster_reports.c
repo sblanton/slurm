@@ -410,15 +410,6 @@ static int _setup_print_fields_list(List format_list)
 			field->name = xstrdup("Cluster");
 			field->len = 9;
 			field->print_routine = print_fields_str;
-		} else if (!strncasecmp("cpucount", object,
-					MAX(command_len, 2)) ||
-			   !strncasecmp("TresCount", object,
-					MAX(command_len, 5)) ||
-			   !strncasecmp("count", object, MAX(command_len, 2))) {
-			field->type = PRINT_CLUSTER_TRES_CNT;
-			field->name = xstrdup("TRES Count");
-			field->len = 10;
-			field->print_routine = print_fields_uint;
 		} else if (!strncasecmp("down", object, MAX(command_len, 1))) {
 			field->type = PRINT_CLUSTER_TRES_DOWN;
 			field->name = xstrdup("Down");
@@ -494,6 +485,15 @@ static int _setup_print_fields_list(List format_list)
 			else
 				field->len = 9;
 			field->print_routine = slurmdb_report_print_time;
+		} else if (!strncasecmp("TresCount", object,
+					MAX(command_len, 5)) ||
+			   !strncasecmp("cpucount", object,
+					MAX(command_len, 2)) ||
+			   !strncasecmp("count", object, MAX(command_len, 2))) {
+			field->type = PRINT_CLUSTER_TRES_CNT;
+			field->name = xstrdup("TRES Count");
+			field->len = 10;
+			field->print_routine = print_fields_uint;
 		} else if (!strncasecmp("TresName", object,
 				       MAX(command_len, 5))) {
 			field->type = PRINT_CLUSTER_TRES_NAME;
