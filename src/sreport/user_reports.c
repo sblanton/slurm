@@ -2,7 +2,7 @@
  *  user_reports.c - functions for generating user reports
  *                     from accounting infrastructure.
  *****************************************************************************
- *
+ *  Copyright (C) 2010-2015 SchedMD LLC.
  *  Copyright (C) 2008 Lawrence Livermore National Security.
  *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
  *  Written by Danny Auble <da@llnl.gov>
@@ -80,12 +80,12 @@ static int _set_cond(int *start, int argc, char *argv[],
 
 	if (!assoc_cond->cluster_list)
 		assoc_cond->cluster_list = list_create(slurm_destroy_char);
-	for (i=(*start); i<argc; i++) {
+	for (i = (*start); i < argc; i++) {
 		end = parse_option_end(argv[i]);
 		if (!end)
-			command_len=strlen(argv[i]);
+			command_len = strlen(argv[i]);
 		else
-			command_len=end-1;
+			command_len = end - 1;
 
 		if (!end && !strncasecmp(argv[i], "all_clusters",
 					       MAX(command_len, 1))) {
@@ -168,7 +168,7 @@ static int _setup_print_fields_list(List format_list)
 	char *object = NULL;
 
 	if (!format_list || !list_count(format_list)) {
-		exit_code=1;
+		exit_code = 1;
 		fprintf(stderr,
 			" We need a format list to set up the print.\n");
 		return SLURM_ERROR;
@@ -178,7 +178,7 @@ static int _setup_print_fields_list(List format_list)
 		print_fields_list = list_create(destroy_print_field);
 
 	itr = list_iterator_create(format_list);
-	while((object = list_next(itr))) {
+	while ((object = list_next(itr))) {
 		char *tmp_char = NULL;
 		int command_len = 0;
 		int newlen = 0;
@@ -222,7 +222,7 @@ static int _setup_print_fields_list(List format_list)
 			else
 				field->len = 10;
 			field->print_routine = slurmdb_report_print_time;
-		}else if (!strncasecmp("Energy", object, MAX(command_len, 1))) {
+		} else if (!strncasecmp("Energy", object, MAX(command_len, 1))){
 			field->type = PRINT_USER_ENERGY;
 			field->name = xstrdup("Energy");
 			if (time_format == SLURMDB_REPORT_TIME_SECS_PER
@@ -233,7 +233,7 @@ static int _setup_print_fields_list(List format_list)
 				field->len = 10;
 			field->print_routine = slurmdb_report_print_time;
 		} else {
-			exit_code=1;
+			exit_code = 1;
 			fprintf(stderr, " Unknown field '%s'\n", object);
 			xfree(field);
 			continue;
@@ -260,8 +260,7 @@ extern int user_top(int argc, char *argv[])
 	List format_list = list_create(slurm_destroy_char);
 	List slurmdb_report_cluster_list = NULL;
 	char *object = NULL;
-
-	int i=0;
+	int i = 0;
 	slurmdb_report_user_rec_t *slurmdb_report_user = NULL;
 	slurmdb_report_cluster_rec_t *slurmdb_report_cluster = NULL;
 	print_field_t *field = NULL;
@@ -316,7 +315,7 @@ extern int user_top(int argc, char *argv[])
 	field_count = list_count(print_fields_list);
 
 	cluster_itr = list_iterator_create(slurmdb_report_cluster_list);
-	while((slurmdb_report_cluster = list_next(cluster_itr))) {
+	while ((slurmdb_report_cluster = list_next(cluster_itr))) {
 		int count = 0;
 		uint32_t tres_id = TRES_CPU;
 		slurmdb_tres_rec_t *tres_rec;
@@ -362,7 +361,7 @@ extern int user_top(int argc, char *argv[])
 			while ((field = list_next(itr2))) {
 				char *tmp_char = NULL;
 				struct passwd *pwd = NULL;
-				switch(field->type) {
+				switch (field->type) {
 				case PRINT_USER_ACCT:
 					itr3 = list_iterator_create(
 						slurmdb_report_user->acct_list);
@@ -445,16 +444,8 @@ end_it:
 	 */
 	group_accts = 0;
 	slurmdb_destroy_user_cond(user_cond);
-
-	if (slurmdb_report_cluster_list) {
-		list_destroy(slurmdb_report_cluster_list);
-		slurmdb_report_cluster_list = NULL;
-	}
-
-	if (print_fields_list) {
-		list_destroy(print_fields_list);
-		print_fields_list = NULL;
-	}
+	FREE_NULL_LIST(slurmdb_report_cluster_list);
+	FREE_NULL_LIST(print_fields_list);
 
 	return rc;
 }
