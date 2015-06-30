@@ -353,24 +353,25 @@ static void _get_joules_task(acct_gather_energy_t *energy)
 	if (debug_flags & DEBUG_FLAG_ENERGY)
 		info("RAPL Result %"PRIu64" = %.6f Joules", result, ret);
 
-	if (energy->consumed_energy != 0) {
+	if (energy->consumed_energy) {
 		uint16_t node_freq;
-		energy->consumed_energy = (uint32_t)ret - energy->base_watts;
+		energy->consumed_energy =
+			(uint64_t)ret - energy->base_consumed_energy;
 		energy->current_watts =
 			(uint32_t)ret - energy->previous_consumed_energy;
 		node_freq = slurm_get_acct_gather_node_freq();
 		if (node_freq)	/* Prevent divide by zero */
-			local_energy->current_watts /= (float)node_freq;
-	}
-	if (energy->consumed_energy == 0) {
+			energy->current_watts /= (float)node_freq;
+	} else {
 		energy->consumed_energy = 1;
-		energy->base_watts = (uint32_t)ret;
+		energy->base_consumed_energy = (uint64_t)ret;
 	}
-	energy->previous_consumed_energy = (uint32_t)ret;
+	energy->previous_consumed_energy = (uint64_t)ret;
 	energy->poll_time = time(NULL);
 
 	if (debug_flags & DEBUG_FLAG_ENERGY)
-		info("_get_joules_task: current %.6f Joules, consumed %u",
+		info("_get_joules_task: current %.6f Joules, "
+		     "consumed %"PRIu64"",
 		     ret, energy->consumed_energy);
 }
 

@@ -36,6 +36,8 @@ documents those changes that are of interest to users and administrators.
     structures are changed to make it easier to add new profile types,
     particularly energy sensors. sh5util will continue to work with either
     format.
+ -- Add partition information to sshare output if the --partition option
+    is specified on the sshare command line.
  -- Add sreport -T/--tres option to identify Trackable RESources (TRES) to
     report.
 
@@ -325,6 +327,7 @@ documents those changes that are of interest to users and administrators.
  -- Set the totalview_stepid to the value of the job step instead of NO_VAL.
  -- Fix slurmdbd core dump if the daemon does not have connection with
     the database.
+ -- Display error message when attempting to modify priority of a held job.
 
 * Changes in Slurm 14.11.7
 ==========================
