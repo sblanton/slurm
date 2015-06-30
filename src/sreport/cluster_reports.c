@@ -823,6 +823,111 @@ end_it:
 	return rc;
 }
 
+static void _cluster_user_by_account_tres_report(slurmdb_tres_rec_t *tres,
+		slurmdb_report_cluster_rec_t *slurmdb_report_cluster,
+		slurmdb_report_user_rec_t *slurmdb_report_user)
+{
+	slurmdb_tres_rec_t *cluster_tres_rec, *tres_rec, *total_energy;
+	char *tmp_char = NULL;
+	struct passwd *pwd = NULL;
+	int curr_inx = 1, field_count;
+	ListIterator iter = NULL;
+	print_field_t *field;
+	uint64_t cluster_energy_cnt = 0, user_energy_cnt = 0;
+	uint32_t tres_energy;
+	char *tres_tmp = NULL;
+
+	if (!(cluster_tres_rec = list_find_first(
+				slurmdb_report_cluster->tres_list,
+				slurmdb_find_tres_in_list,
+				&tres->id))) {
+		info("error, no %s(%d) TRES!", tres->type, tres->id);
+		return;
+	}
+	if (!(tres_rec = list_find_first(slurmdb_report_cluster->tres_list,
+				slurmdb_find_tres_in_list,
+				&tres->id))) {
+		info("error, no %s(%d) TRES!", tres->type, tres->id);
+		return;
+	}
+	if (!tres_rec->alloc_secs) {
+		debug2("error, no %s(%d) TRES usage", tres->type, tres->id);
+		return;
+	}
+
+	field_count = list_count(print_fields_list);
+	iter = list_iterator_create(print_fields_list);
+	while ((field = list_next(iter))) {
+		switch (field->type) {
+		case PRINT_CLUSTER_ACCT:
+			field->print_routine(field,
+					     slurmdb_report_user->acct,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_NAME:
+			field->print_routine(field,
+					     slurmdb_report_cluster->name,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_USER_LOGIN:
+			field->print_routine(field,
+					     slurmdb_report_user->name,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_USER_PROPER:
+			pwd = getpwnam(slurmdb_report_user->name);
+			if (pwd) {
+				tmp_char = strtok(pwd->pw_gecos, ",");
+				if (!tmp_char)
+					tmp_char = pwd->pw_gecos;
+			}
+			field->print_routine(field, tmp_char,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_AMOUNT_USED:
+			field->print_routine(field, tres_rec->alloc_secs,
+					     cluster_tres_rec->alloc_secs,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_ENERGY:
+			/* For backward compatibility with pre-TRES logic,
+			 * get energy_cnt here */
+			tres_energy = TRES_ENERGY;
+			if ((total_energy = list_find_first(
+				     slurmdb_report_cluster->tres_list,
+				     slurmdb_find_tres_in_list,
+				     &tres_energy)))
+				cluster_energy_cnt = total_energy->alloc_secs;
+			if ((total_energy = list_find_first(
+					slurmdb_report_user->tres_list,
+					slurmdb_find_tres_in_list,
+					&tres_energy)))
+				user_energy_cnt = total_energy->alloc_secs;
+			field->print_routine(field, user_energy_cnt,
+					     cluster_energy_cnt,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_TRES_NAME:
+			xstrfmtcat(tres_tmp, "%s%s%s",
+				   tres->type,
+				   tres->name ? "/" : "",
+				   tres->name ? tres->name : "");
+
+			field->print_routine(field, tres_tmp,
+					     (curr_inx == field_count));
+			xfree(tres_tmp);
+			break;
+		default:
+			field->print_routine(field, NULL,
+					     (curr_inx == field_count));
+			break;
+		}
+		curr_inx++;
+	}
+	list_iterator_destroy(iter);
+	printf("\n");
+}
+
 extern int cluster_user_by_account(int argc, char *argv[])
 {
 	int rc = SLURM_SUCCESS;
@@ -837,8 +942,6 @@ extern int cluster_user_by_account(int argc, char *argv[])
 	int i = 0;
 	slurmdb_report_user_rec_t *slurmdb_report_user = NULL;
 	slurmdb_report_cluster_rec_t *slurmdb_report_cluster = NULL;
-	print_field_t *field = NULL;
-	int field_count = 0;
 
 	print_fields_list = list_create(destroy_print_field);
 
@@ -846,9 +949,15 @@ extern int cluster_user_by_account(int argc, char *argv[])
 
 	_set_assoc_cond(&i, argc, argv, assoc_cond, format_list);
 
-	if (!list_count(format_list))
-		slurm_addto_char_list(format_list,
-				      "Cluster,Login,Proper,Ac,Used,Energy");
+	if (!list_count(format_list)) {
+		if (tres_str) {
+			slurm_addto_char_list(format_list,
+				"Cluster,Login,Proper,Ac,TresName,Used");
+		} else {
+			slurm_addto_char_list(format_list,
+				"Cluster,Login,Proper,Ac,Used,Energy");
+		}
+	}
 
 	_setup_print_fields_list(format_list);
 	list_destroy(format_list);
@@ -873,12 +982,12 @@ extern int cluster_user_by_account(int argc, char *argv[])
 		       start_char, end_char,
 		       (int)(assoc_cond->usage_end - assoc_cond->usage_start));
 
-		switch(time_format) {
+		switch (time_format) {
 		case SLURMDB_REPORT_TIME_PERCENT:
 			printf("Time reported in %s\n", time_format_string);
 			break;
 		default:
-			printf("Time reported in CPU %s\n",
+			printf("Time reported in TRES %s\n",
 			       time_format_string);
 			break;
 		}
@@ -889,122 +998,29 @@ extern int cluster_user_by_account(int argc, char *argv[])
 	itr2 = list_iterator_create(print_fields_list);
 	print_fields_header(print_fields_list);
 
-	field_count = list_count(print_fields_list);
 	cluster_itr = list_iterator_create(slurmdb_report_cluster_list);
 	while ((slurmdb_report_cluster = list_next(cluster_itr))) {
-		uint32_t tres_id = TRES_CPU;
-		slurmdb_tres_rec_t *tres_rec;
-		uint64_t cluster_cpu_alloc_secs = 0;
-		uint64_t cluster_energy_alloc_secs = 0;
-		if ((tres_rec = list_find_first(
-			     slurmdb_report_cluster->tres_list,
-			     slurmdb_find_tres_in_list,
-			     &tres_id)))
-			cluster_cpu_alloc_secs = tres_rec->alloc_secs;
-
-		tres_id = TRES_ENERGY;
-		if ((tres_rec = list_find_first(
-			     slurmdb_report_cluster->tres_list,
-			     slurmdb_find_tres_in_list,
-			     &tres_id)))
-			cluster_energy_alloc_secs = tres_rec->alloc_secs;
-
 		list_sort(slurmdb_report_cluster->user_list,
 			  (ListCmpF)sort_user_dec);
-
 		itr = list_iterator_create(slurmdb_report_cluster->user_list);
 		while ((slurmdb_report_user = list_next(itr))) {
-			uint64_t cpu_alloc_secs = 0, energy_alloc_secs = 0;
-			int curr_inx = 1;
-
-			tres_id = TRES_CPU;
-			if ((tres_rec = list_find_first(
-				     slurmdb_report_user->tres_list,
-				     slurmdb_find_tres_in_list,
-				     &tres_id)))
-				cpu_alloc_secs = tres_rec->alloc_secs;
-
-
-			/* we don't care if they didn't use any time */
-			if (!cpu_alloc_secs)
-				continue;
-
-			tres_id = TRES_ENERGY;
-			if ((tres_rec = list_find_first(
-				     slurmdb_report_user->tres_list,
-				     slurmdb_find_tres_in_list,
-				     &tres_id)))
-				energy_alloc_secs = tres_rec->alloc_secs;
-
-			while ((field = list_next(itr2))) {
-				char *tmp_char = NULL;
-				struct passwd *pwd = NULL;
-				switch(field->type) {
-				case PRINT_CLUSTER_ACCT:
-					field->print_routine(
-						field,
-						slurmdb_report_user->acct,
-						(curr_inx == field_count));
-					break;
-				case PRINT_CLUSTER_NAME:
-					field->print_routine(
-						field,
-						slurmdb_report_cluster->name,
-						(curr_inx == field_count));
-					break;
-				case PRINT_CLUSTER_USER_LOGIN:
-					field->print_routine(
-						field,
-						slurmdb_report_user->name,
-						(curr_inx == field_count));
-					break;
-				case PRINT_CLUSTER_USER_PROPER:
-					pwd = getpwnam(
-						slurmdb_report_user->name);
-					if (pwd) {
-						tmp_char =
-							strtok(pwd->pw_gecos,
-							       ",");
-						if (!tmp_char)
-							tmp_char =
-								pwd->pw_gecos;
-					}
-					field->print_routine(field,
-							     tmp_char,
-							     (curr_inx ==
-							      field_count));
-					break;
-				case PRINT_CLUSTER_AMOUNT_USED:
-					field->print_routine(
-						field,
-						cpu_alloc_secs,
-						cluster_cpu_alloc_secs,
-						(curr_inx == field_count));
-					break;
-                                case PRINT_CLUSTER_ENERGY:
-                                        field->print_routine(
-                                                field,
-                                                energy_alloc_secs,
-						cluster_energy_alloc_secs,
-                                                (curr_inx == field_count));
-                                        break;
-				default:
-					field->print_routine(
-						field, NULL,
-						(curr_inx == field_count));
-					break;
-				}
-				curr_inx++;
+			slurmdb_tres_rec_t *tres;
+			itr2 = list_iterator_create(tres_list);
+			while ((tres = list_next(itr2))) {
+				if (tres->id == NO_VAL)
+					continue;
+				_cluster_user_by_account_tres_report(tres,
+					slurmdb_report_cluster,
+					slurmdb_report_user);
 			}
-			list_iterator_reset(itr2);
-			printf("\n");
+			list_iterator_destroy(itr2);
+
 		}
 		list_iterator_destroy(itr);
 	}
 	list_iterator_destroy(cluster_itr);
 end_it:
 	slurmdb_destroy_assoc_cond(assoc_cond);
-
 	FREE_NULL_LIST(slurmdb_report_cluster_list);
 	FREE_NULL_LIST(print_fields_list);
 
@@ -1023,6 +1039,7 @@ static void _cluster_user_by_wckey_tres_report(slurmdb_tres_rec_t *tres,
 	print_field_t *field;
 	uint64_t cluster_energy_cnt = 0, user_energy_cnt = 0;
 	uint32_t tres_energy;
+	char *tres_tmp = NULL;
 
 	if (!(cluster_tres_rec = list_find_first(
 				slurmdb_report_cluster->tres_list,
@@ -1093,6 +1110,16 @@ static void _cluster_user_by_wckey_tres_report(slurmdb_tres_rec_t *tres,
 			field->print_routine(field, user_energy_cnt,
 					     cluster_energy_cnt,
 					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_TRES_NAME:
+			xstrfmtcat(tres_tmp, "%s%s%s",
+				   tres->type,
+				   tres->name ? "/" : "",
+				   tres->name ? tres->name : "");
+
+			field->print_routine(field, tres_tmp,
+					     (curr_inx == field_count));
+			xfree(tres_tmp);
 			break;
 		default:
 			field->print_routine(field, NULL,
@@ -1394,6 +1421,7 @@ static void _cluster_wckey_by_user_tres_report(slurmdb_tres_rec_t *tres,
 	int curr_inx = 1, field_count;
 	ListIterator iter = NULL;
 	print_field_t *field;
+	char *tres_tmp = NULL;
 
 	if (!(cluster_tres_rec = list_find_first(
 				slurmdb_report_cluster->tres_list,
@@ -1448,6 +1476,16 @@ static void _cluster_wckey_by_user_tres_report(slurmdb_tres_rec_t *tres,
 			field->print_routine(field, tres_rec->alloc_secs,
 					     cluster_tres_rec->alloc_secs,
 					     (curr_inx == field_count));
+			break;
+		case PRINT_CLUSTER_TRES_NAME:
+			xstrfmtcat(tres_tmp, "%s%s%s",
+				   tres->type,
+				   tres->name ? "/" : "",
+				   tres->name ? tres->name : "");
+
+			field->print_routine(field, tres_tmp,
+					     (curr_inx == field_count));
+			xfree(tres_tmp);
 			break;
 		default:
 			field->print_routine(field, NULL,
