@@ -2,7 +2,7 @@
  *  job_reports.c - functions for generating job reports
  *                     from accounting infrastructure.
  *****************************************************************************
- *
+ *  Copyright (C) 2010-2015 SchedMD LLC.
  *  Copyright (C) 2008 Lawrence Livermore National Security.
  *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
  *  Written by Danny Auble <da@llnl.gov>
@@ -162,7 +162,7 @@ static char *_string_to_uid( char *name )
 /* returns number of objects added to list */
 static int _addto_uid_char_list(List char_list, char *names)
 {
-	int i=0, start=0;
+	int i = 0, start = 0;
 	char *name = NULL, *tmp_char = NULL;
 	ListIterator itr = NULL;
 	char quote_c = '\0';
@@ -182,7 +182,7 @@ static int _addto_uid_char_list(List char_list, char *names)
 			i++;
 		}
 		start = i;
-		while(names[i]) {
+		while (names[i]) {
 			//info("got %d - %d = %d", i, start, i-start);
 			if (quote && names[i] == quote_c)
 				break;
@@ -195,7 +195,7 @@ static int _addto_uid_char_list(List char_list, char *names)
 					//info("got %s %d", name, i-start);
 					name = _string_to_uid( name );
 
-					while((tmp_char = list_next(itr))) {
+					while ((tmp_char = list_next(itr))) {
 						if (!strcasecmp(tmp_char, name))
 							break;
 					}
@@ -223,7 +223,7 @@ static int _addto_uid_char_list(List char_list, char *names)
 			memcpy(name, names+start, (i-start));
 			name = _string_to_uid( name );
 
-			while((tmp_char = list_next(itr))) {
+			while ((tmp_char = list_next(itr))) {
 				if (!strcasecmp(tmp_char, name))
 					break;
 			}
@@ -253,7 +253,7 @@ static int _set_cond(int *start, int argc, char *argv[],
 	if (!job_cond->cluster_list)
 		job_cond->cluster_list = list_create(slurm_destroy_char);
 
-	for (i=(*start); i<argc; i++) {
+	for (i = (*start); i < argc; i++) {
 		end = parse_option_end(argv[i]);
 		if (!end)
 			command_len=strlen(argv[i]);
@@ -390,7 +390,7 @@ static int _set_cond(int *start, int argc, char *argv[],
 					      argv[i]+end);
 			set = 1;
 		} else {
-			exit_code=1;
+			exit_code = 1;
 			fprintf(stderr, " Unknown condition: %s\n"
 				"Use keyword set to modify value\n", argv[i]);
 		}
@@ -424,7 +424,7 @@ static int _setup_print_fields_list(List format_list)
 	char *object = NULL;
 
 	if (!format_list || !list_count(format_list)) {
-		exit_code=1;
+		exit_code = 1;
 		fprintf(stderr,
 			" We need a format list to set up the print.\n");
 		return SLURM_ERROR;
@@ -434,7 +434,7 @@ static int _setup_print_fields_list(List format_list)
 		print_fields_list = list_create(destroy_print_field);
 
 	itr = list_iterator_create(format_list);
-	while((object = list_next(itr))) {
+	while ((object = list_next(itr))) {
 		char *tmp_char = NULL;
 		int command_len = 0;
 		int newlen = 0;
@@ -499,7 +499,7 @@ static int _setup_print_fields_list(List format_list)
 			field->len = 9;
 			field->print_routine = print_fields_str;
 		} else {
-			exit_code=1;
+			exit_code = 1;
 			fprintf(stderr, " Unknown field '%s'\n", object);
 			xfree(field);
 			continue;
@@ -526,7 +526,7 @@ static int _setup_grouping_print_fields_list(List grouping_list)
 	char *tmp_char = NULL;
 
 	if (!grouping_list || !list_count(grouping_list)) {
-		exit_code=1;
+		exit_code = 1;
 		fprintf(stderr, " We need a grouping list to "
 			"set up the print.\n");
 		return SLURM_ERROR;
@@ -604,7 +604,7 @@ static int _run_report(int type, int argc, char *argv[])
 	int rc = SLURM_SUCCESS;
 	slurmdb_job_cond_t *job_cond = xmalloc(sizeof(slurmdb_job_cond_t));
 
-	int i=0;
+	int i = 0;
 
 	uint64_t count1, count2;
 
@@ -788,7 +788,7 @@ static int _run_report(int type, int argc, char *argv[])
 						tres_rec->alloc_secs;
 
 				field = list_next(itr2);
-				switch(field->type) {
+				switch (field->type) {
 				case PRINT_JOB_SIZE:
 					field->print_routine(
 						field,
@@ -842,30 +842,11 @@ end_it:
 
 	slurmdb_destroy_job_cond(job_cond);
 
-	if (grouping_list) {
-		list_destroy(grouping_list);
-		grouping_list = NULL;
-	}
-
-	if (assoc_list) {
-		list_destroy(assoc_list);
-		assoc_list = NULL;
-	}
-
-	if (slurmdb_report_cluster_grouping_list) {
-		list_destroy(slurmdb_report_cluster_grouping_list);
-		slurmdb_report_cluster_grouping_list = NULL;
-	}
-
-	if (print_fields_list) {
-		list_destroy(print_fields_list);
-		print_fields_list = NULL;
-	}
-
-	if (grouping_print_fields_list) {
-		list_destroy(grouping_print_fields_list);
-		grouping_print_fields_list = NULL;
-	}
+	FREE_NULL_LIST(grouping_list);
+	FREE_NULL_LIST(assoc_list);
+	FREE_NULL_LIST(slurmdb_report_cluster_grouping_list);
+	FREE_NULL_LIST(print_fields_list);
+	FREE_NULL_LIST(grouping_print_fields_list);
 
 	return rc;
 }
