@@ -583,10 +583,10 @@ static List _get_cluster_list(int argc, char *argv[], uint32_t *total_time,
 		       report_name, start_char, end_char);
 		switch(time_format) {
 		case SLURMDB_REPORT_TIME_PERCENT:
-			printf("Time reported in %s\n", time_format_string);
+			printf("Use reported in %s\n", time_format_string);
 			break;
 		default:
-			printf("Time reported in TRES %s\n", time_format_string);
+			printf("Use reported in TRES %s\n", time_format_string);
 			break;
 		}
 		printf("----------------------------------------"
@@ -599,7 +599,7 @@ static List _get_cluster_list(int argc, char *argv[], uint32_t *total_time,
 	return cluster_list;
 }
 
-static void _cluster_account_by_user_report(slurmdb_tres_rec_t *tres,
+static void _cluster_account_by_user_tres_report(slurmdb_tres_rec_t *tres,
 		slurmdb_report_cluster_rec_t *slurmdb_report_cluster,
 		slurmdb_report_assoc_rec_t *slurmdb_report_assoc)
 {
@@ -620,7 +620,7 @@ static void _cluster_account_by_user_report(slurmdb_tres_rec_t *tres,
 		info("error, no %s(%d) TRES!", tres->type, tres->id);
 		return;
 	}
-	if (!(tres_rec = list_find_first(slurmdb_report_cluster->tres_list,
+	if (!(tres_rec = list_find_first(slurmdb_report_assoc->tres_list,
 				slurmdb_find_tres_in_list,
 				&tres->id))) {
 		info("error, no %s(%d) TRES!", tres->type, tres->id);
@@ -630,8 +630,6 @@ static void _cluster_account_by_user_report(slurmdb_tres_rec_t *tres,
 		debug2("error, no %s(%d) TRES usage", tres->type, tres->id);
 		return;
 	}
-
-
 
 	field_count = list_count(print_fields_list);
 	iter = list_iterator_create(print_fields_list);
@@ -788,10 +786,10 @@ extern int cluster_account_by_user(int argc, char *argv[])
 
 		switch(time_format) {
 		case SLURMDB_REPORT_TIME_PERCENT:
-			printf("Time reported in %s\n", time_format_string);
+			printf("Use reported in %s\n", time_format_string);
 			break;
 		default:
-			printf("Time reported in TRES %s\n",
+			printf("Use reported in TRES %s\n",
 			       time_format_string);
 			break;
 		}
@@ -816,7 +814,7 @@ extern int cluster_account_by_user(int argc, char *argv[])
 			while ((tres = list_next(itr2))) {
 				if (tres->id == NO_VAL)
 					continue;
-				_cluster_account_by_user_report(tres,
+				_cluster_account_by_user_tres_report(tres,
 					slurmdb_report_cluster,
 					slurmdb_report_assoc);
 			}
@@ -855,7 +853,7 @@ static void _cluster_user_by_account_tres_report(slurmdb_tres_rec_t *tres,
 		info("error, no %s(%d) TRES!", tres->type, tres->id);
 		return;
 	}
-	if (!(tres_rec = list_find_first(slurmdb_report_cluster->tres_list,
+	if (!(tres_rec = list_find_first(slurmdb_report_user->tres_list,
 				slurmdb_find_tres_in_list,
 				&tres->id))) {
 		info("error, no %s(%d) TRES!", tres->type, tres->id);
@@ -995,10 +993,10 @@ extern int cluster_user_by_account(int argc, char *argv[])
 
 		switch (time_format) {
 		case SLURMDB_REPORT_TIME_PERCENT:
-			printf("Time reported in %s\n", time_format_string);
+			printf("Use reported in %s\n", time_format_string);
 			break;
 		default:
-			printf("Time reported in TRES %s\n",
+			printf("Use reported in TRES %s\n",
 			       time_format_string);
 			break;
 		}
@@ -1059,7 +1057,7 @@ static void _cluster_user_by_wckey_tres_report(slurmdb_tres_rec_t *tres,
 		info("error, no %s(%d) TRES!", tres->type, tres->id);
 		return;
 	}
-	if (!(tres_rec = list_find_first(slurmdb_report_cluster->tres_list,
+	if (!(tres_rec = list_find_first(slurmdb_report_user->tres_list,
 				slurmdb_find_tres_in_list,
 				&tres->id))) {
 		info("error, no %s(%d) TRES!", tres->type, tres->id);
@@ -1199,10 +1197,10 @@ extern int cluster_user_by_wckey(int argc, char *argv[])
 
 		switch (time_format) {
 		case SLURMDB_REPORT_TIME_PERCENT:
-			printf("Time reported in %s\n", time_format_string);
+			printf("Use reported in %s\n", time_format_string);
 			break;
 		default:
-			printf("Time reported in TRES %s\n",
+			printf("Use reported in TRES %s\n",
 			       time_format_string);
 			break;
 		}
@@ -1441,7 +1439,7 @@ static void _cluster_wckey_by_user_tres_report(slurmdb_tres_rec_t *tres,
 		info("error, no %s(%d) TRES!", tres->type, tres->id);
 		return;
 	}
-	if (!(tres_rec = list_find_first(slurmdb_report_cluster->tres_list,
+	if (!(tres_rec = list_find_first(slurmdb_report_assoc->tres_list,
 				slurmdb_find_tres_in_list,
 				&tres->id))) {
 		info("error, no %s(%d) TRES!", tres->type, tres->id);
@@ -1565,10 +1563,10 @@ extern int cluster_wckey_by_user(int argc, char *argv[])
 
 		switch (time_format) {
 		case SLURMDB_REPORT_TIME_PERCENT:
-			printf("Time reported in %s\n", time_format_string);
+			printf("Use reported in %s\n", time_format_string);
 			break;
 		default:
-			printf("Time reported in TRES %s\n",
+			printf("Use reported in TRES %s\n",
 			       time_format_string);
 			break;
 		}
